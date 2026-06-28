@@ -1,0 +1,31 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Rule {
+  id              String   @id @default(cuid()) // E.g. internal ID, can map to standard SALES-000001 in UI
+  displayId       String   @unique // E.g. SALES-000001
+  category        String
+  subcategory     String
+  globalRank      Int
+  categoryRank    Int
+  rule            String
+  expectedImpact  String
+  confidenceScore Int      // 0-100
+  evidenceCount   Int
+  tags            String   // Stored as JSON string since SQLite doesn't natively support String[] easily without extra tables
+  sourceType      String
+  dateAdded       DateTime @default(now())
+  lastUpdated     DateTime @updatedAt
+  status          String
+  notes           String?
+  companies       String?
+}
