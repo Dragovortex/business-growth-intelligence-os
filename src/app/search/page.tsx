@@ -65,7 +65,7 @@ export default function SearchPage() {
       <div className="flex-1 overflow-auto max-w-4xl mx-auto w-full pb-20">
         {results.length > 0 ? (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground px-2">Top results for "{search}"</p>
+            <p className="text-sm text-muted-foreground px-2">Top results for &ldquo;{search}&rdquo;</p>
             {results.map((rule) => (
               <Link key={rule.displayId} href={`/rules/${rule.displayId}`}>
                 <GlassCard className="hover:bg-white/[0.05] transition-colors cursor-pointer group mb-4">
@@ -90,7 +90,7 @@ export default function SearchPage() {
           </div>
         ) : search.trim() !== '' && !isSearching ? (
           <div className="text-center py-20">
-            <p className="text-muted-foreground text-lg">No rules found matching "{search}"</p>
+            <p className="text-muted-foreground text-lg">No rules found matching &ldquo;{search}&rdquo;</p>
           </div>
         ) : null}
       </div>

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { GlassCard } from "@/components/shared/GlassCard";
-import { Trophy, Star, BookOpen, Activity, Calendar, Tag, ArrowLeft, Building2 } from "lucide-react";
+import { Trophy, Star, BookOpen, Activity, Tag, ArrowLeft, Building2 } from "lucide-react";
 import Link from "next/link";
 import { BookmarkButton } from "@/components/shared/BookmarkButton";
 
@@ -23,12 +23,12 @@ export default async function RuleDetailsPage({
   let tags = [];
   try {
     tags = JSON.parse(rule.tags);
-  } catch (e) {}
+  } catch {}
 
   let companies = [];
   try {
     companies = rule.companies ? JSON.parse(rule.companies) : [];
-  } catch (e) {}
+  } catch {}
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-4xl mx-auto h-full overflow-y-auto pb-20">

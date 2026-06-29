@@ -47,7 +47,7 @@ export default function BookmarksPage() {
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">No bookmarks yet</h2>
           <p className="text-muted-foreground max-w-md mb-6">
-            You haven't saved any rules to your collection yet. Browse the database and click the bookmark icon to save rules here for quick reference.
+            You haven&apos;t saved any rules to your collection yet. Browse the database and click the bookmark icon to save rules here for quick reference.
           </p>
           <Link href="/rules" className="px-6 py-2 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-colors">
             Browse Rules

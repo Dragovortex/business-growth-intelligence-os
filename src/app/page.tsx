@@ -1,6 +1,6 @@
 import { getDashboardStats } from "@/features/rules/actions";
 import { GlassCard } from "@/components/shared/GlassCard";
-import { Database, CheckCircle, TrendingUp, Sparkles, Activity } from "lucide-react";
+import { Database, CheckCircle, TrendingUp, Sparkles, Activity, Star, ArrowRight, Trophy } from "lucide-react";
 import Link from "next/link";
 
 export default async function DashboardPage() {
@@ -35,6 +35,11 @@ export default async function DashboardPage() {
               <h2 className="text-3xl font-bold text-white">
                 {stats.verifiedRules.toLocaleString()}
               </h2>
+              {stats.totalRules > 0 && (
+                <p className="text-xs text-green-500/80 mt-1">
+                  {Math.round((stats.verifiedRules / stats.totalRules) * 100)}% of total
+                </p>
+              )}
             </div>
             <div className="p-3 bg-green-500/20 rounded-xl border border-green-500/20">
               <CheckCircle className="w-5 h-5 text-green-500" />
@@ -61,7 +66,7 @@ export default async function DashboardPage() {
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-1">Categories</p>
               <h2 className="text-3xl font-bold text-white">
-                {stats.topCategories.length}+
+                {stats.totalCategories}
               </h2>
             </div>
             <div className="p-3 bg-purple-500/20 rounded-xl border border-purple-500/20">
@@ -77,25 +82,51 @@ export default async function DashboardPage() {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary" />
-                Latest Discoveries
+                Top Ranked Rules
               </h3>
               <Link href="/rules" className="text-sm text-primary hover:underline">
                 View all database →
               </Link>
             </div>
             
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4">
-                <Database className="w-8 h-8 text-muted-foreground" />
+            {stats.topRules.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4">
+                  <Database className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h4 className="text-white font-medium mb-2">Explore the rules database</h4>
+                <p className="text-sm text-muted-foreground max-w-sm mb-6">
+                  You have {stats.totalRules.toLocaleString()} actionable business rules waiting to be explored.
+                </p>
+                <Link href="/rules" className="px-6 py-2 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-colors">
+                  Browse Rules
+                </Link>
               </div>
-              <h4 className="text-white font-medium mb-2">Explore the rules database</h4>
-              <p className="text-sm text-muted-foreground max-w-sm mb-6">
-                You have {stats.totalRules.toLocaleString()} actionable business rules waiting to be explored.
-              </p>
-              <Link href="/rules" className="px-6 py-2 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-colors">
-                Browse Rules
-              </Link>
-            </div>
+            ) : (
+              <div className="space-y-2">
+                {stats.topRules.map((rule) => (
+                  <Link
+                    key={rule.displayId}
+                    href={`/rules/${rule.displayId}`}
+                    className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/[0.04] border border-transparent hover:border-white/10 transition-colors group"
+                  >
+                    <div className="flex items-center gap-1.5 font-mono text-primary font-bold text-sm w-14 shrink-0">
+                      <Trophy className="w-3.5 h-3.5" />
+                      #{rule.globalRank}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{rule.rule}</p>
+                      <p className="text-xs text-muted-foreground">{rule.category}</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-yellow-500 shrink-0">
+                      <Star className="w-3.5 h-3.5 fill-current" />
+                      <span className="text-xs font-bold">{rule.confidenceScore}%</span>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-white transition-colors shrink-0" />
+                  </Link>
+                ))}
+              </div>
+            )}
           </GlassCard>
         </div>
 

@@ -3,6 +3,21 @@
 import { prisma } from "@/lib/prisma"
 import { Prisma } from "@prisma/client"
 
+// Whitelist of fields the UI is allowed to sort by. Prevents an arbitrary
+// `sortBy` value from reaching Prisma (which would throw an unhandled error).
+const SORTABLE_FIELDS = new Set([
+  'globalRank',
+  'categoryRank',
+  'confidenceScore',
+  'evidenceCount',
+  'expectedImpact',
+  'category',
+  'dateAdded',
+  'displayId',
+])
+
+const MAX_LIMIT = 200
+
 export async function getRules(params: {
   page?: number,
   limit?: number,
@@ -12,17 +27,34 @@ export async function getRules(params: {
   sortBy?: string,
   sortOrder?: 'asc' | 'desc',
 }) {
-  const { page = 1, limit = 50, search, category, minConfidence, sortBy = 'globalRank', sortOrder = 'asc' } = params;
+  const {
+    page: rawPage = 1,
+    limit: rawLimit = 50,
+    search,
+    category,
+    minConfidence,
+    sortBy = 'globalRank',
+    sortOrder = 'asc',
+  } = params;
+
+  // Defensive clamping so bad client input can't crash the query.
+  const page = Math.max(1, Math.floor(rawPage) || 1);
+  const limit = Math.min(MAX_LIMIT, Math.max(1, Math.floor(rawLimit) || 50));
   const skip = (page - 1) * limit;
 
   const where: Prisma.RuleWhereInput = {};
 
-  if (search) {
+  const q = search?.trim();
+  if (q) {
+    // Postgres `contains` is case-sensitive by default (unlike SQLite), so we
+    // must opt into insensitive matching or lowercase searches return nothing.
     where.OR = [
-      { rule: { contains: search } },
-      { category: { contains: search } },
-      { tags: { contains: search } },
-      { companies: { contains: search } },
+      { rule: { contains: q, mode: 'insensitive' } },
+      { category: { contains: q, mode: 'insensitive' } },
+      { subcategory: { contains: q, mode: 'insensitive' } },
+      { expectedImpact: { contains: q, mode: 'insensitive' } },
+      { tags: { contains: q, mode: 'insensitive' } },
+      { companies: { contains: q, mode: 'insensitive' } },
     ];
   }
 
@@ -34,8 +66,11 @@ export async function getRules(params: {
     where.confidenceScore = { gte: minConfidence };
   }
 
+  const safeSortBy = SORTABLE_FIELDS.has(sortBy) ? sortBy : 'globalRank';
+  const safeSortOrder: 'asc' | 'desc' = sortOrder === 'desc' ? 'desc' : 'asc';
+
   const orderBy: Prisma.RuleOrderByWithRelationInput = {
-    [sortBy]: sortOrder,
+    [safeSortBy]: safeSortOrder,
   };
 
   const [rules, total] = await Promise.all([
@@ -76,31 +111,82 @@ export async function getCategories() {
 }
 
 export async function getDashboardStats() {
-  const totalRules = await prisma.rule.count();
-  
-  const avgConfidence = await prisma.rule.aggregate({
-    _avg: {
-      confidenceScore: true,
-    },
-  });
-
-  const topCategories = await getCategories();
+  const [totalRules, verifiedRules, avgConfidence, categories, topRules] = await Promise.all([
+    prisma.rule.count(),
+    prisma.rule.count({ where: { status: 'Verified' } }),
+    prisma.rule.aggregate({ _avg: { confidenceScore: true } }),
+    getCategories(),
+    prisma.rule.findMany({ orderBy: { globalRank: 'asc' }, take: 6 }),
+  ]);
 
   return {
     totalRules,
-    verifiedRules: totalRules, // Mocked for now, assuming all seed data is verified
+    verifiedRules,
     avgConfidence: avgConfidence._avg.confidenceScore || 0,
-    topCategories: topCategories.slice(0, 5),
+    totalCategories: categories.length,
+    topCategories: categories.slice(0, 5),
+    topRules,
   };
 }
 
 export async function getRulesByIds(displayIds: string[]) {
   if (!displayIds || displayIds.length === 0) return [];
-  
+
   return await prisma.rule.findMany({
     where: {
       displayId: { in: displayIds },
     },
     orderBy: { globalRank: 'asc' },
   });
+}
+
+export async function getAllRules() {
+  return prisma.rule.findMany({ orderBy: { globalRank: 'asc' } });
+}
+
+export async function getRankings(category?: string) {
+  const where: Prisma.RuleWhereInput =
+    category && category !== 'All' ? { category } : {};
+
+  const [topRules, categories, totalRanked] = await Promise.all([
+    prisma.rule.findMany({
+      where,
+      orderBy: { globalRank: 'asc' },
+      take: 100,
+    }),
+    getCategories(),
+    prisma.rule.count({ where }),
+  ]);
+
+  return { topRules, categories, totalRanked };
+}
+
+export async function getEvidenceStats() {
+  const [bySourceRaw, totals, topEvidenced, totalRules] = await Promise.all([
+    prisma.rule.groupBy({
+      by: ['sourceType'],
+      _count: { sourceType: true },
+      _avg: { evidenceCount: true, confidenceScore: true },
+    }),
+    prisma.rule.aggregate({ _sum: { evidenceCount: true } }),
+    prisma.rule.findMany({ orderBy: { evidenceCount: 'desc' }, take: 8 }),
+    prisma.rule.count(),
+  ]);
+
+  const bySource = bySourceRaw
+    .map(s => ({
+      sourceType: s.sourceType,
+      count: s._count.sourceType,
+      avgEvidence: Math.round(s._avg.evidenceCount || 0),
+      avgConfidence: Math.round(s._avg.confidenceScore || 0),
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    totalEvidence: totals._sum.evidenceCount || 0,
+    totalRules,
+    sourceTypeCount: bySource.length,
+    bySource,
+    topEvidenced,
+  };
 }

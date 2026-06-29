@@ -22,12 +22,14 @@ interface RulesTableProps {
     page: number;
     totalPages: number;
   }
+  categories?: { name: string; count: number }[]
+  initialCategory?: string
 }
 
-export function RulesTable({ initialData }: RulesTableProps) {
+export function RulesTable({ initialData, categories = [], initialCategory = '' }: RulesTableProps) {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
-  const [category, setCategory] = useState('')
+  const [category, setCategory] = useState(initialCategory)
   const [minConfidence, setMinConfidence] = useState(0)
   
   const [sortBy, setSortBy] = useState('globalRank')
@@ -52,7 +54,7 @@ export function RulesTable({ initialData }: RulesTableProps) {
       }
       return undefined
     },
-    initialData: (search === '' && category === '' && minConfidence === 0 && sortBy === 'globalRank' && sortOrder === 'asc') ? {
+    initialData: (search === '' && category === initialCategory && minConfidence === 0 && sortBy === 'globalRank' && sortOrder === 'asc') ? {
       pages: [initialData],
       pageParams: [1]
     } : undefined,
@@ -62,6 +64,8 @@ export function RulesTable({ initialData }: RulesTableProps) {
   const flatData = useMemo(() => {
     return data?.pages.flatMap(page => page.rules) ?? []
   }, [data])
+
+  const totalResults = data?.pages?.[0]?.total ?? initialData.total
 
   const handleBookmark = (rule: Rule, e: React.MouseEvent) => {
     e.preventDefault();
@@ -77,7 +81,7 @@ export function RulesTable({ initialData }: RulesTableProps) {
         toast.success(`Added ${rule.displayId} to bookmarks`);
       }
       localStorage.setItem('bio_bookmarks', JSON.stringify(bookmarks));
-    } catch (err) {
+    } catch {
       toast.error('Failed to update bookmarks');
     }
   }
@@ -96,8 +100,7 @@ export function RulesTable({ initialData }: RulesTableProps) {
     return sortOrder === 'asc' ? <ArrowDownAZ className="w-3 h-3 ml-1 text-primary" /> : <ArrowUpZA className="w-3 h-3 ml-1 text-primary" />;
   }
 
-  const columns = useMemo<ColumnDef<Rule>[]>(
-    () => [
+  const columns: ColumnDef<Rule>[] = [
       {
         accessorKey: 'globalRank',
         header: () => (
@@ -186,9 +189,7 @@ export function RulesTable({ initialData }: RulesTableProps) {
           </div>
         )
       }
-    ],
-    [sortBy, sortOrder]
-  )
+    ];
 
   const table = useReactTable({
     data: flatData,
@@ -241,19 +242,17 @@ export function RulesTable({ initialData }: RulesTableProps) {
         />
         
         <div className="flex items-center gap-4 w-full md:w-auto">
-          <select 
-            className="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+          <select
+            className="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 max-w-[220px]"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
             <option value="">All Categories</option>
-            <option value="Marketing">Marketing</option>
-            <option value="Sales">Sales</option>
-            <option value="Pricing">Pricing</option>
-            <option value="Psychology">Psychology</option>
-            <option value="UX">UX</option>
-            <option value="CRO">CRO</option>
-            <option value="Copywriting">Copywriting</option>
+            {categories.map((cat) => (
+              <option key={cat.name} value={cat.name}>
+                {cat.name} ({cat.count.toLocaleString()})
+              </option>
+            ))}
           </select>
           
           <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm">
@@ -270,6 +269,12 @@ export function RulesTable({ initialData }: RulesTableProps) {
             </select>
           </div>
         </div>
+      </div>
+
+      <div className="px-4 py-2 border-b border-white/5 text-xs text-muted-foreground">
+        <span className="text-white font-medium">{totalResults.toLocaleString()}</span> rule{totalResults === 1 ? '' : 's'}
+        {category ? <> in <span className="text-white font-medium">{category}</span></> : null}
+        {search ? <> matching &ldquo;<span className="text-white font-medium">{search}</span>&rdquo;</> : null}
       </div>
 
       {/* Table Header */}
@@ -302,7 +307,6 @@ export function RulesTable({ initialData }: RulesTableProps) {
         >
           {virtualItems.map((virtualRow) => {
             const isLoaderRow = virtualRow.index > flatData.length - 1
-            const row = flatData[virtualRow.index]
 
             if (isLoaderRow) {
               return (

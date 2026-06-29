@@ -1,19 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Bookmark } from 'lucide-react'
 import { toast } from 'sonner'
 
-export function BookmarkButton({ displayId }: { displayId: string }) {
-  const [isBookmarked, setIsBookmarked] = useState(false);
-
-  useEffect(() => {
+function getInitialBookmarkState(displayId: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
     const stored = localStorage.getItem('bio_bookmarks');
     if (stored) {
       const bookmarks = JSON.parse(stored);
-      setIsBookmarked(bookmarks.includes(displayId));
+      return bookmarks.includes(displayId);
     }
-  }, [displayId]);
+  } catch {
+    // ignore parse errors
+  }
+  return false;
+}
+
+export function BookmarkButton({ displayId }: { displayId: string }) {
+  const [isBookmarked, setIsBookmarked] = useState(() => getInitialBookmarkState(displayId));
 
   const toggleBookmark = () => {
     try {
@@ -29,7 +35,7 @@ export function BookmarkButton({ displayId }: { displayId: string }) {
         toast.success(`Added ${displayId} to bookmarks`);
       }
       localStorage.setItem('bio_bookmarks', JSON.stringify(bookmarks));
-    } catch (err) {
+    } catch {
       toast.error('Failed to update bookmarks');
     }
   }
